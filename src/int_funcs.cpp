@@ -7,12 +7,9 @@
 #include <mpi.h>
 #include "int_funcs.h"
 
-using namespace std;
-using namespace Eigen;
-
 const double pi = 3.14159265358979323846; // 20 digits
 
-void myMPI::boundaryConditions(MPI_params& p, MatrixXd& grid, VectorXd& xVals, VectorXd& yVals)
+void myMPI::boundaryConditions(MPI_params& p, Eigen::MatrixXd& grid, Eigen::VectorXd& xVals, Eigen::VectorXd& yVals)
 {
 	// Left and right
 	if (p.Cx == 0)
@@ -82,7 +79,7 @@ void findFactorsInRatio(int N, double R, int factors[2])
 	factors[1] = N / factors[0];
 }
 
-void myMPI::createGrid(MPI_params& pMPI, int rank, params& p, MatrixXd& grid, VectorXd& xVals, VectorXd& yVals)
+void myMPI::createGrid(MPI_params& pMPI, int rank, params& p, Eigen::MatrixXd& grid, Eigen::VectorXd& xVals, Eigen::VectorXd& yVals)
 {
 	// Remander from evenly dividing mesh points over number of x and y coords
 	int remain[2] = { p.Nx % (pMPI.xmax + 1), p.Ny % (pMPI.ymax + 1) };
@@ -120,19 +117,19 @@ void myMPI::createGrid(MPI_params& pMPI, int rank, params& p, MatrixXd& grid, Ve
 	if (pMPI.Cx != 0) xVals(0) -= p.dx;
 	if ((remain[0] != 0) && (pMPI.Cx > remain[0])) xVals(0) -= p.dx * (pMPI.Cx - remain[0]);
 	for (int i = 1; i < mesh[0]; i++)
-		xVals(i) = xVals(i - 1.0) + p.dx;
+		xVals(i) = xVals(i - 1) + p.dx;
 	yVals.resize(mesh[1]);
 	yVals(0) = p.ymin + p.dy * pMPI.Cy * (p.Ny / (pMPI.ymax + 1) + (p.Ny % (pMPI.ymax + 1) != 0));
 	if (pMPI.Cy != 0) yVals(0) -= p.dy;
 	if ((remain[1] != 0) && (pMPI.Cy > remain[1])) yVals(0) -= p.dy * (pMPI.Cy - remain[1]);
 	for (int i = 1; i < mesh[1]; i++)
-		yVals(i) = yVals(i - 1.0) + p.dy;
+		yVals(i) = yVals(i - 1) + p.dy;
 
 	// Impose BCs
 	myMPI::boundaryConditions(pMPI, grid, xVals, yVals);
 }
 
-void myMPI::Jacobi_MPI_Solve(MPI_params& pMPI, MPI_Comm& cart_comm, params& p, MatrixXd& grid, MatrixXd& F)
+void myMPI::Jacobi_MPI_Solve(MPI_params& pMPI, MPI_Comm& cart_comm, params& p, Eigen::MatrixXd& grid, Eigen::MatrixXd& F)
 {
 	// Prefactors & constants
 	double beta_sq = pow(p.dx / p.dy, 2);
@@ -218,10 +215,10 @@ params elliptic::fill_params(double xmin, double ymin, double dx, double dy, dou
 	return p;
 }
 
-void myMPI::output_2D_MPI(string f, MatrixXd& grid, VectorXd& xVals, VectorXd& yVals, MPI_params& pMPI, params& p, int rank)
+void myMPI::output_2D_MPI(std::string f, Eigen::MatrixXd& grid, Eigen::VectorXd& xVals, Eigen::VectorXd& yVals, MPI_params& pMPI, params& p, int rank)
 {
 	// Output vector of all calculated points (including edges)
-	double* outVals = new double[3.0 * pMPI.NxL * pMPI.NyL];
+	double* outVals = new double[3 * pMPI.NxL * pMPI.NyL];
 	// If left edge, include boundary, otherwise exclude (overlap)
 	int imin = (xVals(0) == p.xmin ? 0 : 1); 
 	// If bottom edge, include boundary, otherwise exclude (overlap)
@@ -238,7 +235,7 @@ void myMPI::output_2D_MPI(string f, MatrixXd& grid, VectorXd& xVals, VectorXd& y
 	// Convert filename from string to char array
 	int n = f.length();
 	char* file = new char[n + 1];
-	strcpy_s(file, n + 1, f.c_str());
+	strcpy(file, f.c_str());
 
 	// Delete old file (if exists), then open new version
 	MPI_File fh;
@@ -262,7 +259,7 @@ void myMPI::output_2D_MPI(string f, MatrixXd& grid, VectorXd& xVals, VectorXd& y
 	MPI_File_close(&fh);
 }
 
-void elliptic::SOR_Solve(params& p, MatrixXd& f, MatrixXd& F)
+void elliptic::SOR_Solve(params& p, Eigen::MatrixXd& f, Eigen::MatrixXd& F)
 {
 	double beta_sq = pow(p.dx / p.dy, 2);
 	double denom = 2.0 * (1.0 + beta_sq);
@@ -282,7 +279,7 @@ void elliptic::SOR_Solve(params& p, MatrixXd& f, MatrixXd& F)
 	}
 }
 
-void elliptic::Jacobi_Solve(params& p, MatrixXd& f, MatrixXd& F)
+void elliptic::Jacobi_Solve(params& p, Eigen::MatrixXd& f, Eigen::MatrixXd& F)
 {
 	double beta_sq = pow(p.dx / p.dy, 2);
 	double denom = 2.0 * (1.0 + beta_sq);
@@ -302,11 +299,11 @@ void elliptic::Jacobi_Solve(params& p, MatrixXd& f, MatrixXd& F)
 	}
 }
 
-void diffusion::FTCS_Solve(MatrixXd& grid, double dx, double dt, int Nx, int Nt, double alpha)
+void diffusion::FTCS_Solve(Eigen::MatrixXd& grid, double dx, double dt, int Nx, int Nt, double alpha)
 {
 	double denom = alpha * dt / pow(dx, 2);
 	if (denom > 0.5) {
-		cout << "NOPE";
+		std::cout << "NOPE";
 		return;
 	}
 	for (int j = 0; j < Nt; j++) {
@@ -316,10 +313,10 @@ void diffusion::FTCS_Solve(MatrixXd& grid, double dx, double dt, int Nx, int Nt,
 	}
 }
 
-void diffusion::BTCS_Solve(MatrixXd& grid, double dx, double dt, int Nx, int Nt, double alpha)
+void diffusion::BTCS_Solve(Eigen::MatrixXd& grid, double dx, double dt, int Nx, int Nt, double alpha)
 {
 	double denom = alpha * dt / pow(dx, 2);
-	MatrixXd c(Nx - 2, 3);
+	Eigen::MatrixXd c(Nx - 2, 3);
 	c.setZero();
 	for (int i = 1; i < Nx - 1; i++)
 	{
@@ -330,7 +327,7 @@ void diffusion::BTCS_Solve(MatrixXd& grid, double dx, double dt, int Nx, int Nt,
 	c(0, 0) = 0.0;
 	c(Nx - 3, 2) = 0.0;
 
-	VectorXd b(Nx - 2);
+	Eigen::VectorXd b(Nx - 2);
 	b.setZero();
 
 	for (int t = 1; t < Nt; t++)
@@ -347,7 +344,7 @@ void diffusion::BTCS_Solve(MatrixXd& grid, double dx, double dt, int Nx, int Nt,
 	}
 }
 
-void output_2D(params& p, MatrixXd& f, fstream& fout)
+void output_2D(params& p, Eigen::MatrixXd& f, std::fstream& fout)
 {
 	double x, y;
 	for (int i = 0; i < p.Nx; i++) {
@@ -368,10 +365,10 @@ void output_2D(params& p, MatrixXd& f, fstream& fout)
 	c(N, 3) is a formatted matrix of coeffs from C(N, N)
 		and b(N) are the RHS coeff
 */
-VectorXd ThomasSolve(MatrixXd c, VectorXd b)
+Eigen::VectorXd ThomasSolve(Eigen::MatrixXd c, Eigen::VectorXd b)
 {
 	int N = c.rows();
-	VectorXd x(N);
+	Eigen::VectorXd x(N);
 	double W;
 	for (int i = 1; i < N; i++)
 	{

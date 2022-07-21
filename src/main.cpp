@@ -23,9 +23,6 @@
 #include <mpi.h>
 #include "int_funcs.h"
 
-using namespace std;
-using namespace Eigen;
-
 const double pi = 3.14159265358979323846; // 20 digits
 const double e = 2.71828182845904523536; // 20 digits
 
@@ -63,8 +60,8 @@ int main(int argc, char** argv)
     myMPI::create_2D_cart(p, cart_comm, procs, rank, R);
     
     // Create the mesh on each node. Interior values are intialized to zero
-    MatrixXd grid, F;
-    VectorXd xVals, yVals;
+    Eigen::MatrixXd grid, F;
+    Eigen::VectorXd xVals, yVals;
     params param = elliptic::fill_params(xmin, ymin, dx, dy, eps, omega, N, Nx, Ny);
     myMPI::createGrid(p, rank, param, grid, xVals, yVals);
 
@@ -77,13 +74,13 @@ int main(int argc, char** argv)
     //cout << "Rank " << rank << ", solution:\n" << grid << "\n";
 
     if ((param.flag == false) && (rank == 0))
-        cout << "Solution failed to converge\n";
+        std::cout << "Solution failed to converge\n";
     else {
-        string filename = "Poisson_Sol_Jacobi";
+        std::string filename = "data/Poisson_Sol_Jacobi";
         filename += "_Nx_"
-            + to_string(Nx) + "_Ny_"
-            + to_string(Ny) + ".dat";
-        if (rank == 0) cout << "Solution saved to '" << filename << "\n\n";
+            + std::to_string(Nx) + "_Ny_"
+            + std::to_string(Ny) + ".dat";
+        if (rank == 0) std::cout << "Solution saved to '" << filename << "\n\n";
         if (output) {
             myMPI::output_2D_MPI(filename, grid, xVals, yVals, p, param, rank);
         }
